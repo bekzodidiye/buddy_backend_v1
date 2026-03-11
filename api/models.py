@@ -22,7 +22,7 @@ class User(AbstractUser):
     field = models.CharField(max_length=100, null=True, blank=True)
     long_bio = models.TextField(null=True, blank=True)
     field_description = models.TextField(null=True, blank=True)
-    motivation_quote = models.CharField(max_length=100, null=True, blank=True)
+    motivation_quote = models.CharField(max_length=150, null=True, blank=True)
     skills = models.JSONField(default=list, blank=True)
     is_approved = models.BooleanField(default=False)
     assigned_curator = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='students')

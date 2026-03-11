@@ -4,25 +4,32 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
+        print(f"DEBUG WS: NotificationConsumer.connect - User: {self.user}")
         if self.user.is_authenticated:
-            self.user_group = f"user_{self.user.id}"
-            await self.channel_layer.group_add(self.user_group, self.channel_name)
-            await self.channel_layer.group_add(f"role_{self.user.role}", self.channel_name)
-            await self.channel_layer.group_add("all_users", self.channel_name)
-            await self.channel_layer.group_add("online_users", self.channel_name)
-            
-            await self.accept()
-            
-            # Notify others about online status
-            await self.channel_layer.group_send(
-                "online_users",
-                {
-                    "type": "user_status",
-                    "user_id": str(self.user.id),
-                    "status": "online"
-                }
-            )
+            try:
+                self.user_group = f"user_{self.user.id}"
+                await self.channel_layer.group_add(self.user_group, self.channel_name)
+                await self.channel_layer.group_add(f"role_{self.user.role}", self.channel_name)
+                await self.channel_layer.group_add("all_users", self.channel_name)
+                await self.channel_layer.group_add("online_users", self.channel_name)
+                
+                await self.accept()
+                print(f"DEBUG WS: NotificationConsumer accepted for user {self.user.id}")
+                
+                # Notify others about online status
+                await self.channel_layer.group_send(
+                    "online_users",
+                    {
+                        "type": "user_status",
+                        "user_id": str(self.user.id),
+                        "status": "online"
+                    }
+                )
+            except Exception as e:
+                print(f"DEBUG WS: NotificationConsumer error during connect: {str(e)}")
+                await self.close()
         else:
+            print("DEBUG WS: NotificationConsumer rejected - User not authenticated")
             await self.close()
 
     async def disconnect(self, close_code):
@@ -64,11 +71,18 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
+        print(f"DEBUG WS: ChatConsumer.connect - User: {self.user}")
         if self.user.is_authenticated:
-            self.room_group_name = f"chat_{self.user.id}"
-            await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-            await self.accept()
+            try:
+                self.room_group_name = f"chat_{self.user.id}"
+                await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+                await self.accept()
+                print(f"DEBUG WS: ChatConsumer accepted for user {self.user.id}")
+            except Exception as e:
+                print(f"DEBUG WS: ChatConsumer error during connect: {str(e)}")
+                await self.close()
         else:
+            print("DEBUG WS: ChatConsumer rejected - User not authenticated")
             await self.close()
 
     async def disconnect(self, close_code):
