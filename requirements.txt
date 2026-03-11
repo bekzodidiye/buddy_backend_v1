@@ -1,0 +1,22 @@
+django==5.1.2
+djangorestframework
+django-cors-headers
+djangorestframework-simplejwt
+drf-spectacular
+pillow
+<<<<<<< HEAD
+=======
+requests
+>>>>>>> a03c7d14 (finish)
+psycopg2-binary
+python-dotenv
+celery
+redis
+django-celery-results
+django-celery-beat
+channels
+daphne
+channels-redis
+gunicorn
+whitenoise
+dj-database-url
