@@ -12,7 +12,7 @@ User = get_user_model()
 def create_admin():
     username = os.getenv('DJANGO_SUPERUSER_USERNAME', 'admin')
     email = os.getenv('DJANGO_SUPERUSER_EMAIL', 'admin@example.com')
-    password = os.getenv('DJANGO_SUPERUSER_PASSWORD')
+    password = os.getenv('DJANGO_SUPERUSER_PASSWORD','admin')
 
     if not password:
         print("SUPERUSER: DJANGO_SUPERUSER_PASSWORD topilmadi. Superuser yaratilmaydi.")
