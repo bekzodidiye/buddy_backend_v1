@@ -21,12 +21,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Loyiha fayllarini ko'chirish
 COPY . .
 
-# Statik fayllarni yig'ish
-RUN python manage.py collectstatic --noinput
+# Entrypoint skriptini ko'chirish va huquq berish
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Portni ochish
 EXPOSE 8000
 
-# Server va Keep-alive skriptini ishga tushirish
-# '&' belgisi keep_alive.py ni fonda (background) ishga tushiradi
-CMD ["sh", "-c", "python keep_alive.py & daphne -b 0.0.0.0 -p ${PORT:-8000} config.asgi:application"]
+# Entrypoint skriptini ishga tushirish
+ENTRYPOINT ["/app/entrypoint.sh"]
+
