@@ -21,17 +21,12 @@ DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
-<<<<<<< HEAD
-=======
 CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',
     'http://*.railway.app',
+    'https://*.onrender.com',
+    'http://*.onrender.com',
 ]
-railway_static_url = os.getenv('RAILWAY_STATIC_URL')
-if railway_static_url:
-    CSRF_TRUSTED_ORIGINS.append(railway_static_url)
-
->>>>>>> a03c7d14 (finish)
 
 # Application definition
 
