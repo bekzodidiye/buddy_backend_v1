@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     # Third party apps
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_spectacular',
     'channels',
@@ -79,6 +80,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'api',
+    'apps.authentication',
 ]
 
 # Production Channel Layer
@@ -105,6 +107,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Token muddati yaqin bo'lganda yangi token yuborish
+    'apps.authentication.middleware.token_auto_refresh.TokenAutoRefreshMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -193,7 +197,8 @@ AUTH_USER_MODEL = 'api.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Standart JWT o'rniga Redis blacklist tekshiruvchi custom class
+        'apps.authentication.middleware.token_blacklist_auth.BlacklistCheckedJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -201,10 +206,40 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
+# ─── Redis Cache (Token Blacklist uchun) ──────────────────────────────────────
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'IGNORE_EXCEPTIONS': True,  # Redis yo'q bo'lsa ham server ishlayversin
+        },
+        'KEY_PREFIX': 'buddy_cache',
+        'TIMEOUT': 86400,  # 24 soat default
+    }
+}
+
+# ─── JWT Konfiguratsiyasi ─────────────────────────────────────────────────────
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    
+    # Refresh Token Rotation — har refresh da yangi token
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    
+    # Token tip klasslari
+    'TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
+    'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
+    
+    # JTI (JWT ID) ni claim lardan chiqarish — blacklist uchun kerak
+    'JTI_CLAIM': 'jti',
+    
+    # Algorithm
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
 }
 
 CORS_ALLOW_ALL_ORIGINS = False
