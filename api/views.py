@@ -123,12 +123,16 @@ def validate_intra(request):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         user = self.request.user
+        
+        # Publicly visible curators for everyone (including anonymous)
+        public_curators = User.objects.filter(role='curator', status='active', is_approved=True)
+        
         if user.is_anonymous:
-            return User.objects.none()
+            return public_curators
             
         if user.role == 'admin':
             return User.objects.all()
@@ -150,12 +154,12 @@ class UserViewSet(viewsets.ModelViewSet):
 class SeasonViewSet(viewsets.ModelViewSet):
     queryset = Season.objects.all()
     serializer_class = SeasonSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAdminRole()]
-        return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticatedOrReadOnly()]
 
 class MonitoringViewSet(viewsets.ModelViewSet):
     queryset = Monitoring.objects.all()
@@ -188,6 +192,7 @@ class MonitoringViewSet(viewsets.ModelViewSet):
 class WeeklyHighlightViewSet(viewsets.ModelViewSet):
     queryset = WeeklyHighlight.objects.all()
     serializer_class = WeeklyHighlightSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 class NotificationViewSet(viewsets.ModelViewSet):
     queryset = Notification.objects.all()
