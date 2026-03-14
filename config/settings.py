@@ -220,10 +220,11 @@ CACHES = {
 
 # ─── JWT Konfiguratsiyasi ─────────────────────────────────────────────────────
 SIMPLE_JWT = {
-    # FIX: Was 30 hours — dangerously long. Industry standard is 5-15 min.
-    # Refresh token rotation (below) keeps UX smooth without long-lived access tokens.
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    # FIX: Was 15 minutes — too short, caused frequent re-auth overhead.
+    # 2 hours is practical for a monitoring dashboard. Refresh token rotation
+    # (ROTATE_REFRESH_TOKENS below) keeps security intact.
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
     'AUTH_HEADER_TYPES': ('Bearer',),
 
     # Refresh Token Rotation — har refresh da yangi token
