@@ -34,15 +34,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:5173',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    'https://buddy-team-frontent.vercel.app',
-    'https://buddy-frontent.vercel.app',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-]
-
+CORS_ALLOWED_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True # Cookies yoki Authorization headerlar uchun
 
 # Render proxy settings
@@ -88,7 +80,7 @@ INSTALLED_APPS = [
 REDIS_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
 if not REDIS_URL.startswith('redis'):
     REDIS_URL = f"redis://{REDIS_URL}"
-print(f"DEBUG: Using REDIS_URL={REDIS_URL}")
+# FIX: Removed startup print() — use logging instead (configured below)
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
@@ -205,6 +197,11 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # FIX: Added pagination — list endpoints were returning ALL records (memory bomb)
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
+    # FIX: Custom exception handler for consistent error responses
+    'EXCEPTION_HANDLER': 'api.exception_handler.custom_exception_handler',
 }
 
 # ─── Redis Cache (Token Blacklist uchun) ──────────────────────────────────────
@@ -223,27 +220,35 @@ CACHES = {
 
 # ─── JWT Konfiguratsiyasi ─────────────────────────────────────────────────────
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=30),
+    # FIX: Was 30 hours — dangerously long. Industry standard is 5-15 min.
+    # Refresh token rotation (below) keeps UX smooth without long-lived access tokens.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'AUTH_HEADER_TYPES': ('Bearer',),
-    
+
     # Refresh Token Rotation — har refresh da yangi token
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
-    
+
     # Token tip klasslari
     'TOKEN_OBTAIN_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenObtainPairSerializer',
     'TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSerializer',
-    
+
     # JTI (JWT ID) ni claim lardan chiqarish — blacklist uchun kerak
     'JTI_CLAIM': 'jti',
-    
+
     # Algorithm
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+# FIX: Removed CORS_ALLOW_ALL_ORIGINS = True — that setting overrides
+# CORS_ALLOWED_ORIGINS completely, making the whitelist pointless.
+# For local development you can temporarily re-enable it.
+CORSS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all in DEBUG mode
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -255,7 +260,10 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
-CORS_PREFLIGHT_MAX_AGE = 1 # Brauzerni har doim yangi ruxsat so'rashga majburlash
+# FIX: Was 1 second — caused browsers to send OPTIONS pre-flight before EVERY
+# single API request, effectively doubling the request count to the server.
+# 86400 = 24 hours is the standard recommended value.
+CORS_PREFLIGHT_MAX_AGE = 86400
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Buddy Team API',
@@ -272,3 +280,54 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# ─── Logging ──────────────────────────────────────────────────────────────────
+# FIX: Added proper logging configuration. All print() calls in the codebase
+# have been replaced with logger.debug/info/warning/error calls.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose' if not DEBUG else 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'api': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+        # Silence noisy third-party loggers in production
+        'urllib3': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}

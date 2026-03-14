@@ -24,8 +24,12 @@ class UserDevice(models.Model):
         null=True, blank=True,
         verbose_name='IP manzili'
     )
-    refresh_token = models.TextField(
-        verbose_name='Refresh token (hashed)'
+    # FIX: Was TextField — SHA-256 hashes are always exactly 64 hex chars.
+    # db_index=True turns every token refresh/logout from a full table scan → O(log N) lookup.
+    refresh_token = models.CharField(
+        max_length=64,
+        verbose_name='Refresh token (hashed)',
+        db_index=True,
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Yaratilgan vaqt')
     last_active = models.DateTimeField(auto_now=True, verbose_name='Oxirgi faollik')
@@ -34,6 +38,10 @@ class UserDevice(models.Model):
         verbose_name = 'Foydalanuvchi qurilmasi'
         verbose_name_plural = 'Foydalanuvchi qurilmalari'
         ordering = ['-last_active']
+        indexes = [
+            # FIX: Composite index for "get all devices for user" query
+            models.Index(fields=['user', 'last_active'], name='device_user_last_active_idx'),
+        ]
 
     def __str__(self):
         short_name = self.device_name[:50] if self.device_name else "Noma'lum qurilma"

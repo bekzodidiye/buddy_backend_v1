@@ -1,26 +1,28 @@
 """
-Token Auto-Refresh Middleware
+Token Auto-Refresh Middleware — Fixed version
 
-Agar HTTP so'rovda access token muddati yaqin (1 soatdan kam qolgan) bo'lsa,
-Response headerida yangi access token yuboradi.
-
-Bu frontend dagi Axios interceptor bilan birgalikda ishlaydi —
-frontend yangi tokenni avtomatik qabul qilib oladi.
+Changes:
+  - FIX: Was doing User.objects.get(id=user_id) on EVERY request that had
+    a nearly-expired token. The user is already loaded by the authentication
+    backend — we use request.user directly, eliminating the extra DB query.
+  - FIX: Replaced print() with proper logging.
 """
+import logging
 from datetime import timedelta
 
 from django.conf import settings
 from django.utils import timezone
 
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import TokenError
+
+logger = logging.getLogger(__name__)
 
 
 class TokenAutoRefreshMiddleware:
     """
     Production middleware — token muddati yaqin bo'lganda yangi token chiqaradi.
-    
+
     Response da `X-New-Access-Token` header yuboriladi.
     Frontend bu headerni ko'rib, localStorage ni yangilashi kerak.
     """
@@ -33,7 +35,7 @@ class TokenAutoRefreshMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
-        # Faqat authenticated requestlar uchun
+        # Only for authenticated requests
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
         if not auth_header.startswith('Bearer '):
             return response
@@ -47,19 +49,20 @@ class TokenAutoRefreshMiddleware:
             remaining = exp - now_ts
 
             if 0 < remaining < self.THRESHOLD_SECONDS:
-                # Token muddati yaqin — yangi access token yaratib headerga qo'shamiz
-                user_id = token.get('user_id')
-                if user_id:
-                    from django.contrib.auth import get_user_model
-                    User = get_user_model()
-                    try:
-                        user = User.objects.get(id=user_id)
-                        new_token = AccessToken.for_user(user)
-                        response['X-New-Access-Token'] = str(new_token)
-                    except User.DoesNotExist:
-                        pass
+                # FIX: request.user is ALREADY set by BlacklistCheckedJWTAuthentication.
+                # The original code did User.objects.get(id=user_id) here — an extra
+                # DB round-trip on every single request where the token is nearly expired.
+                user = getattr(request, 'user', None)
+                if user and user.is_authenticated:
+                    new_token = AccessToken.for_user(user)
+                    response['X-New-Access-Token'] = str(new_token)
+                    logger.debug(
+                        "Auto-refreshed access token for user %s (%.0fs remaining)",
+                        user.id, remaining
+                    )
+
         except (TokenError, Exception):
-            # Token noto'g'ri — hech narsa qilmaymiz
+            # Token is invalid — do nothing, let the auth backend handle it
             pass
 
         return response
