@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from rest_framework import permissions, status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 
