@@ -19,9 +19,10 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = [
-            'id', 'title', 'message', 'type', 'createdAt',
+            'id', 'title', 'message', 'type', 'timestamp', 'createdAt',
             'isRead', 'targetRole', 'targetUserId', 'sender'
         ]
+        read_only_fields = ['timestamp', 'createdAt']
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
