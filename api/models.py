@@ -38,12 +38,26 @@ class User(AbstractUser, TimestampedModel):
         'self', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='students'
     )
+    startup_curator = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='startup_students'
+    )
+    is_super_curator = models.BooleanField(default=False, db_index=True)
 
     def save(self, *args, **kwargs):
         if self.is_superuser:
             self.role = 'admin'
             self.is_approved = True
             self.status = 'active'
+        
+        # Super curator logic
+        if self.role == 'curator' and self.field == "StartUp Community":
+            self.is_super_curator = True
+        elif not self.is_superuser: # Don't reset if it's admin (unless specified)
+             # But for curators who change field, reset it
+             if self.role == 'curator' and self.field != "StartUp Community":
+                 self.is_super_curator = False
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -74,6 +88,12 @@ class Season(TimestampedModel):
     start_date = models.DateField()
     is_active = models.BooleanField(default=False, db_index=True)
     duration_months = models.IntegerField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.is_active:
+            # Mark all other seasons as inactive
+            Season.objects.filter(is_active=True).exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Mavsum {self.number}"

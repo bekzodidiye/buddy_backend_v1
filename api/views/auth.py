@@ -43,11 +43,14 @@ def validate_intra(request: Request) -> Response:
     """
     Validates credentials against the 21 School Keycloak provider.
     """
-    username: str = request.data.get("username", "").strip()
-    password: str = request.data.get("password", "")
+    raw_username = request.data.get("username", "").strip()
+    username = raw_username
+    password = request.data.get("password", "")
 
+    # For database check and standard intra login, we use lowercase login
     if "@" in username:
         username = username.split("@")[0]
+    username = username.lower()
 
     if not username or not password:
         return Response(
@@ -79,6 +82,16 @@ def validate_intra(request: Request) -> Response:
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "User-Agent": _user_agent,
+        "Accept": "application/json",
+    }
+    
+    # Standard payload for password grant
+    payload = {
+        "client_id": "s21-open-api",
+        "username": username, # Try the extracted login first
+        "password": password,
+        "grant_type": "password",
+        "scope": "openid profile email",
     }
 
     try:
@@ -86,19 +99,29 @@ def validate_intra(request: Request) -> Response:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         resp = requests.post(keycloak_url, data=payload, headers=headers, timeout=25, verify=False)
+        
+        # If login fails, try with raw_username (in case Keycloak expects full email or case-sensitive)
+        if resp.status_code != 200 and raw_username != username:
+            logger.info("Retrying Keycloak auth with raw username for '%s'", raw_username)
+            payload["username"] = raw_username
+            resp = requests.post(keycloak_url, data=payload, headers=headers, timeout=25, verify=False)
 
         if resp.status_code != 200:
+            logger.warning("Keycloak auth failed for '%s': Status %s, Response: %s", username, resp.status_code, resp.text)
             return Response(
-                {"detail": "Login yoki parol noto'g'ri."},
+                {"detail": "School21 login yoki parol noto'g'ri. Iltimos, edu.21-school.ru dagi ma'lumotlaringizni tekshiring."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
         token_data = resp.json()
         access_token: str = token_data.get("access_token", "")
 
-        userinfo_resp = requests.get(
+        userinfo_url = (
             "https://auth.21-school.ru/auth/realms/EduPowerKeycloak"
-            "/protocol/openid-connect/userinfo",
+            "/protocol/openid-connect/userinfo"
+        )
+        userinfo_resp = requests.get(
+            userinfo_url,
             headers={"Authorization": f"Bearer {access_token}", "User-Agent": _user_agent},
             timeout=20,
             verify=False,

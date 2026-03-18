@@ -31,6 +31,8 @@ class UserSerializer(serializers.ModelSerializer):
     motivationQuote = serializers.CharField(source='motivation_quote', allow_blank=True, allow_null=True, required=False)
     isApproved = serializers.BooleanField(source='is_approved', read_only=True)
     assignedCuratorId = serializers.UUIDField(source='assigned_curator_id', allow_null=True, required=False)
+    startupCuratorId = serializers.UUIDField(source='startup_curator_id', allow_null=True, required=False)
+    isSuperCurator = serializers.BooleanField(source='is_super_curator', read_only=True)
     avatar = Base64ImageField(required=False, allow_null=True)
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
     updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
@@ -40,7 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'email', 'name', 'role', 'status', 'avatar',
             'field', 'longBio', 'fieldDescription', 'motivationQuote', 'skills',
-            'isApproved', 'assignedCuratorId', 'socialLinks', 'social_links', 
+            'isApproved', 'assignedCuratorId', 'startupCuratorId', 'isSuperCurator', 'socialLinks', 'social_links', 
             'createdAt', 'updatedAt'
         ]
         read_only_fields = ['id', 'username']

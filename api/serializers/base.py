@@ -23,7 +23,7 @@ class Base64ImageField(serializers.Field):
             return None
 
         # Agar bu allaqachon fayl bo'lsa (masalan, Admin paneldan yuklanganda)
-        if hasattr(data, 'size'):
+        if hasattr(data, 'size') or hasattr(data, 'read'):
             return data
 
         # Agar bu string bo'lsa
@@ -41,10 +41,11 @@ class Base64ImageField(serializers.Field):
 
             # Agar bu URL bo'lsa (Ya'ni rasm o'zgarmagan)
             # URLni modelga saqlashga urinmasligi uchun None qaytaramiz
+            # UserSerializer.update buni handled qilishi kerak
             if data.startswith('http') or '/media/' in data or 'ui-avatars.com' in data:
                 return None
 
-        # Boshqa barcha holatlarda "o'zgarish yo'q" deb hisoblaymiz
+        # Boshqa holatlarda ham rasm o'zgarmagan deb hisoblaymiz (masalan, noto'g'ri string kelsa)
         return None
 
     def to_representation(self, value: Any) -> Any:
