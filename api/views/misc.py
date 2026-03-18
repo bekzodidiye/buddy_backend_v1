@@ -27,6 +27,13 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return get_notification_queryset(self.request.user)
 
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        notifications = self.get_queryset().filter(is_read=False)
+        count = notifications.count()
+        notifications.update(is_read=True)
+        return Response({"detail": f"{count} ta bildirishnoma o'qilgan deb belgilandi."}, status=status.HTTP_200_OK)
+
 
 class ChatMessageViewSet(viewsets.ModelViewSet):
     serializer_class = ChatMessageSerializer
