@@ -90,7 +90,15 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     async def monitoring_update(self, event):
         await self.send(text_data=json.dumps({
             "type": "monitoring_update",
-            "monitoring": event["monitoring"]
+            "monitoring": event["monitoring"],
+            "created": event.get("created", False)
+        }))
+
+    async def highlight_update(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "highlight_update",
+            "highlight": event["highlight"],
+            "created": event.get("created", False)
         }))
 
     async def user_status(self, event):

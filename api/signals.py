@@ -12,7 +12,7 @@ import logging
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Notification, Monitoring
+from .models import Notification, Monitoring, WeeklyHighlight
 
 logger = logging.getLogger(__name__)
 
@@ -109,4 +109,33 @@ def monitoring_realtime(sender, instance, created, **kwargs):
     except Exception as e:
         logger.error(
             "Signal: monitoring_realtime failed: %s: %s", type(e).__name__, e, exc_info=True
+        )
+
+
+@receiver(post_save, sender=WeeklyHighlight)
+def highlight_realtime(sender, instance, created, **kwargs):
+    try:
+        from channels.layers import get_channel_layer
+        from .serializers import WeeklyHighlightSerializer
+
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+
+        highlight_data = json.loads(
+            json.dumps(dict(WeeklyHighlightSerializer(instance).data), default=str)
+        )
+
+        message = {
+            "type": "highlight_update",
+            "highlight": highlight_data,
+            "created": created,
+        }
+
+        # Broadcast to all users for highlights
+        _safe_group_send(channel_layer, "all_users", message)
+
+    except Exception as e:
+        logger.error(
+            "Signal: highlight_realtime failed: %s: %s", type(e).__name__, e, exc_info=True
         )

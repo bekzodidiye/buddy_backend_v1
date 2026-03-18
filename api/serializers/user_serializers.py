@@ -126,6 +126,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             name=validated_data.get('name', ''),
             role=validated_data.get('role', 'student'),
+            field=validated_data.get('field', ''),
             status='pending' if validated_data.get('role') == 'curator' else 'active',
             is_approved=(validated_data.get('role') != 'curator')
         )
