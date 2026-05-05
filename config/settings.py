@@ -34,7 +34,13 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:5173',
 ]
 
-CORS_ALLOWED_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    'https://buddy-team.onrender.com', # Agar production URL ma'lum bo'lsa
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
 CORS_ALLOW_CREDENTIALS = True # Cookies yoki Authorization headerlar uchun
 
 # Render proxy settings
@@ -246,9 +252,7 @@ SIMPLE_JWT = {
 # FIX: Removed CORS_ALLOW_ALL_ORIGINS = True — that setting overrides
 # CORS_ALLOWED_ORIGINS completely, making the whitelist pointless.
 # For local development you can temporarily re-enable it.
-CORSS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all in DEBUG mode
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_HEADERS = [
     'accept',
