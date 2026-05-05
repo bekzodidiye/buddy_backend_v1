@@ -9,6 +9,21 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def alter_refresh_token_type(apps, schema_editor):
+    """
+    Changes refresh_token from TEXT to VARCHAR(64) only on PostgreSQL.
+    SQLite doesn't support ALTER COLUMN TYPE and uses manifest typing anyway.
+    """
+    if schema_editor.connection.vendor == 'postgresql':
+        schema_editor.execute("ALTER TABLE authentication_userdevice ALTER COLUMN refresh_token TYPE VARCHAR(64);")
+
+
+def reverse_alter_refresh_token_type(apps, schema_editor):
+    """Reverts VARCHAR(64) back to TEXT on PostgreSQL."""
+    if schema_editor.connection.vendor == 'postgresql':
+        schema_editor.execute("ALTER TABLE authentication_userdevice ALTER COLUMN refresh_token TYPE TEXT;")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -19,14 +34,14 @@ class Migration(migrations.Migration):
     operations = [
         # ── refresh_token: TextField → CharField(max_length=64, db_index=True) ──
         # The DB already has an index on this column. We use SeparateDatabaseAndState:
-        # - database_operations: ALTER COLUMN type + IF NOT EXISTS index creation
+        # - database_operations: ALTER COLUMN type (PG only) + IF NOT EXISTS index creation
         # - state_operations: AlterField to update Django's state
         migrations.SeparateDatabaseAndState(
             database_operations=[
-                # Change the column type from TEXT to VARCHAR(64)
-                migrations.RunSQL(
-                    sql="ALTER TABLE authentication_userdevice ALTER COLUMN refresh_token TYPE VARCHAR(64);",
-                    reverse_sql="ALTER TABLE authentication_userdevice ALTER COLUMN refresh_token TYPE TEXT;",
+                # Change the column type only on supported databases
+                migrations.RunPython(
+                    alter_refresh_token_type,
+                    reverse_alter_refresh_token_type,
                 ),
                 # Ensure the index exists (IF NOT EXISTS is idempotent)
                 migrations.RunSQL(
